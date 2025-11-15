@@ -233,7 +233,7 @@ class OtherPlayer {
     }
 }
 
-const ws = new WebSocket('wss://mean-ducks-eat.loca.lt');
+const ws = new WebSocket('wss://wicked-guests-mate.loca.lt');
 
 
 ws.onmessage = (event) => {
@@ -360,6 +360,7 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
+
 
 
 
