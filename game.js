@@ -215,28 +215,64 @@ const keys = {};
 const mouse = { x: 0, y: 0 };
 const otherPlayers = new Map();
 
+class OtherPlayer {
+    constructor() {
+        this.x = 0;
+        this.y = 0;
+        this.angle = 0;
+        this.size = 70;
+        this.targetX = 0;
+        this.targetY = 0;
+        this.targetAngle = 0;
+    }
+
+    update(deltaTime) {
+        this.x += (this.targetX - this.x) * 0.3 * deltaTime * 60;
+        this.y += (this.targetY - this.y) * 0.3 * deltaTime * 60;
+        this.angle += (this.targetAngle - this.angle) * 0.3 * deltaTime * 60;
+    }
+}
+
 const ws = new WebSocket('wss://dull-signs-warn.loca.lt');
 
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
-    if (data.type === 'hello') {
+    if (data.type === 'pong') {
+        ping = Date.now() - lastPingTime;
     }
 
     if (data.type === 'playerMove') {
+        let otherPlayer = otherPlayers.get(data.playerId);
+        if (!otherPlayer) {
+            otherPlayer = new OtherPlayer();
+            otherPlayers.set(data.playerId, otherPlayer);
+        }
 
-        otherPlayers.set(data.playerId, {
-            x: data.x,
-            y: data.y,
-            angle: data.angle,
-            size: 70
-        });
+        otherPlayer.targetX = data.x;
+        otherPlayer.targetY = data.y;
+        otherPlayer.targetAngle = data.angle;
     }
+
     if (data.type === 'playerLeft') {
         otherPlayers.delete(data.playerId);
     }
 };
+
+let ping = 0;
+let lastPingTime = 0;
+
+setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+        lastPingTime = Date.now();
+        ws.send(JSON.stringify({type: 'ping'}));
+    }
+}, 1000);
+
+setInterval(() => {
+    document.getElementById('ping').textContent = ping;
+}, 500);
 function drawOtherPlayers() {
     otherPlayers.forEach((otherPlayer, id) => {
         ctx.save();
@@ -246,6 +282,7 @@ function drawOtherPlayers() {
         );
         ctx.rotate(otherPlayer.angle);
 
+        // Левая рука
         ctx.drawImage(
             textures.skins.basic[1].img,
             -(-40) - otherPlayer.size/2,
@@ -253,6 +290,7 @@ function drawOtherPlayers() {
             30, 30
         );
 
+        // Правая рука
         ctx.drawImage(
             textures.skins.basic[1].img,
             40 - otherPlayer.size/2,
@@ -260,6 +298,7 @@ function drawOtherPlayers() {
             30, 30
         );
 
+        // Тело
         ctx.drawImage(
             textures.skins.basic[0].img,
             -otherPlayer.size/2,
@@ -288,6 +327,12 @@ function gameLoop(currentTime) {
     lastTime = currentTime;
 
     player.update(deltaTime);
+
+    // Обновляем других игроков
+    otherPlayers.forEach(otherPlayer => {
+        otherPlayer.update(deltaTime);
+    });
+
     if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
             type: 'playerUpdate',
@@ -296,6 +341,7 @@ function gameLoop(currentTime) {
             angle: player.angle
         }));
     }
+
     camera.update();
     player.updateScreenPosition(camera);
 
@@ -317,6 +363,5 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
-
 
 
