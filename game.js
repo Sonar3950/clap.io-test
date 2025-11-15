@@ -233,7 +233,7 @@ class OtherPlayer {
     }
 }
 
-const ws = new WebSocket('wss://slick-tools-attack.loca.lt');
+const ws = new WebSocket('wss://shaggy-jars-sort.loca.lt');
 
 
 ws.onmessage = (event) => {
@@ -360,6 +360,7 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
+
 
 
 
