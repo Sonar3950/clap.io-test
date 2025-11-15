@@ -233,7 +233,7 @@ class OtherPlayer {
     }
 }
 
-const ws = new WebSocket('wss://dull-signs-warn.loca.lt');
+const ws = new WebSocket('wss://mean-ducks-eat.loca.lt');
 
 
 ws.onmessage = (event) => {
@@ -282,7 +282,6 @@ function drawOtherPlayers() {
         );
         ctx.rotate(otherPlayer.angle);
 
-        // Левая рука
         ctx.drawImage(
             textures.skins.basic[1].img,
             -(-40) - otherPlayer.size/2,
@@ -290,7 +289,6 @@ function drawOtherPlayers() {
             30, 30
         );
 
-        // Правая рука
         ctx.drawImage(
             textures.skins.basic[1].img,
             40 - otherPlayer.size/2,
@@ -298,7 +296,7 @@ function drawOtherPlayers() {
             30, 30
         );
 
-        // Тело
+        
         ctx.drawImage(
             textures.skins.basic[0].img,
             -otherPlayer.size/2,
@@ -328,7 +326,6 @@ function gameLoop(currentTime) {
 
     player.update(deltaTime);
 
-    // Обновляем других игроков
     otherPlayers.forEach(otherPlayer => {
         otherPlayer.update(deltaTime);
     });
@@ -363,5 +360,6 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
+
 
 
