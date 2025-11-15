@@ -1,0 +1,318 @@
+const canvas = document.getElementById("game-canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = 1920;
+canvas.height = 1152;
+
+const world = {
+    settings: {
+        width: 15000,
+        height: 15000,
+        RENDER_PADDING: 200,
+
+        biomeSettings: {
+            visibleX: 0,
+            visibleY: 0,
+            visibleWidth: 0,
+            visibleHeight: 0,
+
+            update(camera) {
+                this.visibleX = Math.max(0, camera.x - world.settings.RENDER_PADDING);
+                this.visibleY = Math.max(0, camera.y - world.settings.RENDER_PADDING);
+                this.visibleWidth = Math.min(
+                    world.settings.width - this.visibleX,
+                    camera.width + world.settings.RENDER_PADDING * 2
+                );
+                this.visibleHeight = Math.min(
+                    world.settings.height - this.visibleY,
+                    camera.height + world.settings.RENDER_PADDING * 2
+                );
+            }
+        },
+
+        gridSettings: {
+            startX: 0,
+            startY: 0,
+            endX: 0,
+            endY: 0,
+
+            update(camera) {
+                this.startX = Math.floor((camera.x - world.settings.RENDER_PADDING) / 90) * 90;
+                this.startY = Math.floor((camera.y - world.settings.RENDER_PADDING) / 90) * 90;
+                this.endX = Math.ceil((camera.x + camera.width + world.settings.RENDER_PADDING) / 90) * 90;
+                this.endY = Math.ceil((camera.y + camera.height + world.settings.RENDER_PADDING) / 90) * 90;
+            }
+        }
+    },
+
+    biomes: [
+        { name: "default forest", x: 0, y: 0, width: 15000, height: 15000, backgroundColor: "#788f57" },
+        { name: "winter", x: 0, y: 0, width: 15000, height: 3000, backgroundColor: "#ccccdf" },
+        { name: "first river", x: 0, y: 3000, width: 15000, height: 750, backgroundColor: "#2c8c9c" },
+        { name: "top forest", x: 0, y: 4800, width: 15000, height: 950, backgroundColor: "#779736" },
+        { name: "second river", x: 0, y: 5750, width: 15000, height: 1000, backgroundColor: "#3465aa" },
+        { name: "bottom forest", x: 0, y: 6750, width: 15000, height: 950, backgroundColor: "#779736" },
+        { name: "desert", x: 0, y: 9000, width: 15000, height: 3000, backgroundColor: "#b88454" }
+    ],
+
+    draw(camera) {
+        this.settings.biomeSettings.update(camera);
+        this.settings.gridSettings.update(camera);
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        for (const biome of this.biomes) {
+            if (biome.x < this.settings.biomeSettings.visibleX + this.settings.biomeSettings.visibleWidth &&
+                biome.x + biome.width > this.settings.biomeSettings.visibleX &&
+                biome.y < this.settings.biomeSettings.visibleY + this.settings.biomeSettings.visibleHeight &&
+                biome.y + biome.height > this.settings.biomeSettings.visibleY) {
+
+                ctx.fillStyle = biome.backgroundColor;
+                ctx.fillRect(
+                    biome.x - camera.x,
+                    biome.y - camera.y,
+                    biome.width,
+                    biome.height
+                );
+            }
+        }
+
+        ctx.strokeStyle = "rgba(59, 60, 54, 0.1)";
+        ctx.lineWidth = 5;
+
+        for (let x = this.settings.gridSettings.startX; x <= this.settings.gridSettings.endX; x += 90) {
+            ctx.beginPath();
+            ctx.moveTo(x - camera.x, this.settings.gridSettings.startY - camera.y);
+            ctx.lineTo(x - camera.x, this.settings.gridSettings.endY - camera.y);
+            ctx.stroke();
+        }
+
+        for (let y = this.settings.gridSettings.startY; y <= this.settings.gridSettings.endY; y += 90) {
+            ctx.beginPath();
+            ctx.moveTo(this.settings.gridSettings.startX - camera.x, y - camera.y);
+            ctx.lineTo(this.settings.gridSettings.endX - camera.x, y - camera.y);
+            ctx.stroke();
+        }
+    }
+};
+
+const player = {
+    x: 100,
+    y: 100,
+    centerX: 0,
+    centerY: 0,
+    screenX: 0,
+    screenY: 0,
+    screenCenterX: 0,
+    screenCenterY: 0,
+    angle: 0,
+    size: 70,
+    handSize: 30,
+    leftHandDistanceX: 40,
+    rightHandDistanceX: -40,
+    leftHandDistanceY: -5,
+    rightHandDistanceY: 45,
+    maxSpeed: 5,
+    acceleration: 0.3,
+    friction: 0.95,
+    velocityX: 0,
+    velocityY: 0,
+
+    update(deltaTime) {
+        const timeScale = 60;
+
+        if (keys["KeyW"]) this.velocityY -= this.acceleration * deltaTime * timeScale;
+        if (keys["KeyS"]) this.velocityY += this.acceleration * deltaTime * timeScale;
+        if (keys["KeyA"]) this.velocityX -= this.acceleration * deltaTime * timeScale;
+        if (keys["KeyD"]) this.velocityX += this.acceleration * deltaTime * timeScale;
+
+        const currentSpeed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+        if (currentSpeed > this.maxSpeed) {
+            this.velocityX = (this.velocityX / currentSpeed) * this.maxSpeed;
+            this.velocityY = (this.velocityY / currentSpeed) * this.maxSpeed;
+        }
+
+        this.velocityX *= this.friction;
+        this.velocityY *= this.friction;
+
+        if (Math.abs(this.velocityX) < 0.05) this.velocityX = 0;
+        if (Math.abs(this.velocityY) < 0.05) this.velocityY = 0;
+
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+
+        this.x = Math.max(-15, Math.min(this.x, world.settings.width));
+        this.y = Math.max(-15, Math.min(this.y, world.settings.height));
+
+        this.centerX = this.x + this.size/2;
+        this.centerY = this.y + this.size/2;
+    },
+
+    updateScreenPosition(camera) {
+        this.screenX = this.x - camera.x;
+        this.screenY = this.y - camera.y;
+        this.screenCenterX = this.screenX + this.size/2;
+        this.screenCenterY = this.screenY + this.size/2;
+    },
+
+    draw() {
+        ctx.save();
+        ctx.translate(this.screenCenterX, this.screenCenterY);
+        ctx.rotate(this.angle);
+
+        ctx.drawImage(
+            textures.skins.basic[1].img,
+            -this.rightHandDistanceX - this.size/2,
+            this.rightHandDistanceY - this.size/2,
+            this.handSize,
+            this.handSize
+        );
+
+        ctx.drawImage(
+            textures.skins.basic[1].img,
+            this.leftHandDistanceX - this.size/2,
+            this.leftHandDistanceY - this.size/2,
+            this.handSize,
+            this.handSize
+        );
+
+        ctx.drawImage(
+            textures.skins.basic[0].img,
+            -this.size/2,
+            -this.size/2,
+            this.size,
+            this.size
+        );
+
+        ctx.restore();
+    }
+};
+
+const camera = {
+    x: 0,
+    y: 0,
+    width: canvas.width,
+    height: canvas.height,
+
+    update() {
+        const targetX = player.centerX - this.width/2;
+        const targetY = player.centerY - this.height/2;
+
+        this.x += (targetX - this.x) * 0.12;
+        this.y += (targetY - this.y) * 0.12;
+    }
+};
+
+const textures = {
+    skins: {
+        basic: [
+            { img: new Image(), src: "images/skins/body01.png" },
+            { img: new Image(), src: "images/skins/arm01.png" }
+        ],
+    }
+};
+
+const keys = {};
+const mouse = { x: 0, y: 0 };
+const otherPlayers = new Map();
+
+const ws = new WebSocket('ws://localhost:8080');
+
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.type === 'hello') {
+    }
+
+    if (data.type === 'playerMove') {
+
+        otherPlayers.set(data.playerId, {
+            x: data.x,
+            y: data.y,
+            angle: data.angle,
+            size: 70
+        });
+    }
+    if (data.type === 'playerLeft') {
+        otherPlayers.delete(data.playerId);
+    }
+};
+function drawOtherPlayers() {
+    otherPlayers.forEach((otherPlayer, id) => {
+        ctx.save();
+        ctx.translate(
+            otherPlayer.x - camera.x + otherPlayer.size/2,
+            otherPlayer.y - camera.y + otherPlayer.size/2
+        );
+        ctx.rotate(otherPlayer.angle);
+
+        ctx.drawImage(
+            textures.skins.basic[1].img,
+            -(-40) - otherPlayer.size/2,
+            45 - otherPlayer.size/2,
+            30, 30
+        );
+
+        ctx.drawImage(
+            textures.skins.basic[1].img,
+            40 - otherPlayer.size/2,
+            -5 - otherPlayer.size/2,
+            30, 30
+        );
+
+        ctx.drawImage(
+            textures.skins.basic[0].img,
+            -otherPlayer.size/2,
+            -otherPlayer.size/2,
+            otherPlayer.size,
+            otherPlayer.size
+        );
+
+        ctx.restore();
+    });
+}
+
+window.addEventListener("keydown", (event) => { keys[event.code] = true; });
+window.addEventListener("keyup", (event) => { keys[event.code] = false; });
+window.addEventListener("mousemove", (event) => {
+    mouse.x = event.clientX;
+    mouse.y = event.clientY;
+
+    player.angle = Math.atan2(mouse.y - player.screenCenterY, mouse.x - player.screenCenterX);
+});
+
+let lastTime = 0;
+function gameLoop(currentTime) {
+    if (lastTime === 0) lastTime = currentTime;
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    player.update(deltaTime);
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: 'playerUpdate',
+            x: player.x,
+            y: player.y,
+            angle: player.angle
+        }));
+    }
+    camera.update();
+    player.updateScreenPosition(camera);
+
+    world.draw(camera);
+    player.draw();
+    drawOtherPlayers();
+
+    requestAnimationFrame(gameLoop);
+}
+
+let loadedCount = 0;
+const allTextures = [...textures.skins.basic];
+
+allTextures.forEach(texture => {
+    texture.img.onload = () => {
+        loadedCount++;
+        if (loadedCount === allTextures.length) gameLoop();
+    };
+    texture.img.src = texture.src;
+});
