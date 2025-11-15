@@ -215,7 +215,7 @@ const keys = {};
 const mouse = { x: 0, y: 0 };
 const otherPlayers = new Map();
 
-const ws = new WebSocket('ws://localhost:8080');
+const ws = new WebSocket('ws://7093b56dbf7624.lhr.life');
 
 
 ws.onmessage = (event) => {
@@ -315,4 +315,5 @@ allTextures.forEach(texture => {
         if (loadedCount === allTextures.length) gameLoop();
     };
     texture.img.src = texture.src;
+
 });
