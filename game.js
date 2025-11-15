@@ -215,7 +215,7 @@ const keys = {};
 const mouse = { x: 0, y: 0 };
 const otherPlayers = new Map();
 
-const ws = new WebSocket('wss://7093b56dbf7624.lhr.life');
+const ws = new WebSocket('ws://7093b56dbf7624.lhr.life');
 
 
 ws.onmessage = (event) => {
@@ -317,4 +317,5 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
+
 
