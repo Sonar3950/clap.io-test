@@ -113,8 +113,8 @@ class Player {
         this.leftHandDistanceY = -5;
         this.rightHandDistanceY = 45;
         this.maxSpeed = 5;
-        this.acceleration = 0.3;
-        this.friction = 0.95;
+        this.acceleration = 0.5;
+        this.friction = 0.90;
         this.velocityX = 0;
         this.velocityY = 0;
 
@@ -205,11 +205,11 @@ class LocalPlayer extends Player {
 }
 
 class OtherPlayer extends Player {
-    constructor() {
-        super();
-        this.targetX = 0;
-        this.targetY = 0;
-        this.targetAngle = 0;
+    constructor(x, y, angle) {
+        super(x, y);
+        this.targetX = x;
+        this.targetY = y;
+        this.targetAngle = angle;
     }
 
     update(deltaTime) {
@@ -271,7 +271,7 @@ ws.onmessage = (event) => {
         let otherPlayer = otherPlayers.get(data.playerId);
 
         if (!otherPlayer) {
-            otherPlayer = new OtherPlayer();
+            otherPlayer = new OtherPlayer(data.x, data.y, data.angle);
             otherPlayers.set(data.playerId, otherPlayer);
         }
 
@@ -346,5 +346,4 @@ allTextures.forEach(texture => {
         if (loadedCount === allTextures.length) gameLoop();
     };
     texture.img.src = texture.src;
-
 });
