@@ -95,64 +95,50 @@ const world = {
     }
 };
 
-const player = {
-    x: 100,
-    y: 100,
-    centerX: 0,
-    centerY: 0,
-    screenX: 0,
-    screenY: 0,
-    screenCenterX: 0,
-    screenCenterY: 0,
-    angle: 0,
-    size: 70,
-    handSize: 30,
-    leftHandDistanceX: 40,
-    rightHandDistanceX: -40,
-    leftHandDistanceY: -5,
-    rightHandDistanceY: 45,
-    maxSpeed: 5,
-    acceleration: 0.3,
-    friction: 0.95,
-    velocityX: 0,
-    velocityY: 0,
+class Player {
+    constructor(x = 100, y = 100) {
+        this.x = x;
+        this.y = y;
+        this.centerX = 0;
+        this.centerY = 0;
+        this.screenX = 0;
+        this.screenY = 0;
+        this.screenCenterX = 0;
+        this.screenCenterY = 0;
+        this.angle = 0;
+        this.size = 70;
+        this.handSize = 30;
+        this.leftHandDistanceX = 40;
+        this.rightHandDistanceX = -40;
+        this.leftHandDistanceY = -5;
+        this.rightHandDistanceY = 45;
+        this.maxSpeed = 5;
+        this.acceleration = 0.3;
+        this.friction = 0.95;
+        this.velocityX = 0;
+        this.velocityY = 0;
 
-    update(deltaTime) {
-        const timeScale = 60;
+        this.updateCenters();
+    }
 
-        if (keys["KeyW"]) this.velocityY -= this.acceleration * deltaTime * timeScale;
-        if (keys["KeyS"]) this.velocityY += this.acceleration * deltaTime * timeScale;
-        if (keys["KeyA"]) this.velocityX -= this.acceleration * deltaTime * timeScale;
-        if (keys["KeyD"]) this.velocityX += this.acceleration * deltaTime * timeScale;
-
-        const currentSpeed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
-        if (currentSpeed > this.maxSpeed) {
-            this.velocityX = (this.velocityX / currentSpeed) * this.maxSpeed;
-            this.velocityY = (this.velocityY / currentSpeed) * this.maxSpeed;
-        }
-
-        this.velocityX *= this.friction;
-        this.velocityY *= this.friction;
-
-        if (Math.abs(this.velocityX) < 0.05) this.velocityX = 0;
-        if (Math.abs(this.velocityY) < 0.05) this.velocityY = 0;
-
-        this.x += this.velocityX;
-        this.y += this.velocityY;
-
-        this.x = Math.max(-15, Math.min(this.x, world.settings.width));
-        this.y = Math.max(-15, Math.min(this.y, world.settings.height));
-
+    updateCenters() {
         this.centerX = this.x + this.size/2;
         this.centerY = this.y + this.size/2;
-    },
+    }
 
     updateScreenPosition(camera) {
         this.screenX = this.x - camera.x;
         this.screenY = this.y - camera.y;
         this.screenCenterX = this.screenX + this.size/2;
         this.screenCenterY = this.screenY + this.size/2;
-    },
+    }
+
+    isVisible(camera) {
+        return this.x < camera.x + camera.width + 100 &&
+            this.x + this.size > camera.x - 100 &&
+            this.y < camera.y + camera.height + 100 &&
+            this.y + this.size > camera.y - 100;
+    }
 
     draw() {
         ctx.save();
@@ -185,7 +171,58 @@ const player = {
 
         ctx.restore();
     }
-};
+}
+
+class LocalPlayer extends Player {
+    update(deltaTime) {
+        const timeScale = 60;
+
+        if (keys["KeyW"]) this.velocityY -= this.acceleration * deltaTime * timeScale;
+        if (keys["KeyS"]) this.velocityY += this.acceleration * deltaTime * timeScale;
+        if (keys["KeyA"]) this.velocityX -= this.acceleration * deltaTime * timeScale;
+        if (keys["KeyD"]) this.velocityX += this.acceleration * deltaTime * timeScale;
+
+        const currentSpeed = Math.sqrt(this.velocityX * this.velocityX + this.velocityY * this.velocityY);
+        if (currentSpeed > this.maxSpeed) {
+            this.velocityX = (this.velocityX / currentSpeed) * this.maxSpeed;
+            this.velocityY = (this.velocityY / currentSpeed) * this.maxSpeed;
+        }
+
+        this.velocityX *= this.friction;
+        this.velocityY *= this.friction;
+
+        if (Math.abs(this.velocityX) < 0.05) this.velocityX = 0;
+        if (Math.abs(this.velocityY) < 0.05) this.velocityY = 0;
+
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+
+        this.x = Math.max(-15, Math.min(this.x, world.settings.width));
+        this.y = Math.max(-15, Math.min(this.y, world.settings.height));
+
+        this.updateCenters();
+    }
+}
+
+class OtherPlayer extends Player {
+    constructor() {
+        super();
+        this.targetX = 0;
+        this.targetY = 0;
+        this.targetAngle = 0;
+    }
+
+    update(deltaTime) {
+        this.x += (this.targetX - this.x) * 0.3 * deltaTime * 60;
+        this.y += (this.targetY - this.y) * 0.3 * deltaTime * 60;
+        this.angle += (this.targetAngle - this.angle) * 0.3 * deltaTime * 60;
+
+        this.updateCenters();
+    }
+}
+
+const player = new LocalPlayer();
+const otherPlayers = new Map();
 
 const camera = {
     x: 0,
@@ -213,38 +250,26 @@ const textures = {
 
 const keys = {};
 const mouse = { x: 0, y: 0 };
-const otherPlayers = new Map();
 
-class OtherPlayer {
-    constructor() {
-        this.x = 0;
-        this.y = 0;
-        this.angle = 0;
-        this.size = 70;
-        this.targetX = 0;
-        this.targetY = 0;
-        this.targetAngle = 0;
-    }
+const ws = new WebSocket('wss://dirty-eggs-happen.loca.lt');
 
-    update(deltaTime) {
-        this.x += (this.targetX - this.x) * 0.3 * deltaTime * 60;
-        this.y += (this.targetY - this.y) * 0.3 * deltaTime * 60;
-        this.angle += (this.targetAngle - this.angle) * 0.3 * deltaTime * 60;
-    }
-}
 
-const ws = new WebSocket('wss://shaggy-jars-sort.loca.lt');
-
+const MESSAGE_TYPES = {
+    PING: 'ping',
+    PONG: 'pong',
+    PLAYER_UPDATE: 'playerUpdate',
+    PLAYER_MOVE: 'playerMove',
+    PLAYER_LEFT: 'playerLeft'
+};
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
-    if (data.type === 'pong') {
-        ping = Date.now() - lastPingTime;
-    }
+    if (data.type === MESSAGE_TYPES.PONG) ping = Date.now() - lastPingTime;
 
-    if (data.type === 'playerMove') {
+    else if (data.type === MESSAGE_TYPES.PLAYER_MOVE) {
         let otherPlayer = otherPlayers.get(data.playerId);
+
         if (!otherPlayer) {
             otherPlayer = new OtherPlayer();
             otherPlayers.set(data.playerId, otherPlayer);
@@ -255,11 +280,10 @@ ws.onmessage = (event) => {
         otherPlayer.targetAngle = data.angle;
     }
 
-    if (data.type === 'playerLeft') {
+    else if (data.type === MESSAGE_TYPES.PLAYER_LEFT) {
         otherPlayers.delete(data.playerId);
     }
 };
-
 let ping = 0;
 let lastPingTime = 0;
 
@@ -268,46 +292,8 @@ setInterval(() => {
         lastPingTime = Date.now();
         ws.send(JSON.stringify({type: 'ping'}));
     }
-}, 1000);
-
-setInterval(() => {
     document.getElementById('ping').textContent = ping;
 }, 500);
-function drawOtherPlayers() {
-    otherPlayers.forEach((otherPlayer, id) => {
-        ctx.save();
-        ctx.translate(
-            otherPlayer.x - camera.x + otherPlayer.size/2,
-            otherPlayer.y - camera.y + otherPlayer.size/2
-        );
-        ctx.rotate(otherPlayer.angle);
-
-        ctx.drawImage(
-            textures.skins.basic[1].img,
-            -(-40) - otherPlayer.size/2,
-            45 - otherPlayer.size/2,
-            30, 30
-        );
-
-        ctx.drawImage(
-            textures.skins.basic[1].img,
-            40 - otherPlayer.size/2,
-            -5 - otherPlayer.size/2,
-            30, 30
-        );
-
-        
-        ctx.drawImage(
-            textures.skins.basic[0].img,
-            -otherPlayer.size/2,
-            -otherPlayer.size/2,
-            otherPlayer.size,
-            otherPlayer.size
-        );
-
-        ctx.restore();
-    });
-}
 
 window.addEventListener("keydown", (event) => { keys[event.code] = true; });
 window.addEventListener("keyup", (event) => { keys[event.code] = false; });
@@ -325,14 +311,14 @@ function gameLoop(currentTime) {
     lastTime = currentTime;
 
     player.update(deltaTime);
-
     otherPlayers.forEach(otherPlayer => {
         otherPlayer.update(deltaTime);
+        otherPlayer.updateScreenPosition(camera);
     });
 
     if (ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
-            type: 'playerUpdate',
+            type: MESSAGE_TYPES.PLAYER_UPDATE,
             x: player.x,
             y: player.y,
             angle: player.angle
@@ -344,7 +330,9 @@ function gameLoop(currentTime) {
 
     world.draw(camera);
     player.draw();
-    drawOtherPlayers();
+    otherPlayers.forEach(otherPlayer => {
+        if (otherPlayer.isVisible(camera)) otherPlayer.draw();
+    });
 
     requestAnimationFrame(gameLoop);
 }
@@ -360,11 +348,3 @@ allTextures.forEach(texture => {
     texture.img.src = texture.src;
 
 });
-
-
-
-
-
-
-
-
