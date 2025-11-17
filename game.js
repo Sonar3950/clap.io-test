@@ -270,7 +270,7 @@ const textures = {
 const keys = {};
 const mouse = { x: 0, y: 0 };
 
-const ws = new WebSocket('wss://major-windows-battle.loca.lt');
+const ws = new WebSocket('wss://solid-cows-create.loca.lt');
 
 
 const MESSAGE_TYPES = {
@@ -376,3 +376,4 @@ let lastPingTime = 0;
         texture.img.src = texture.src;
 
     });
+
