@@ -205,11 +205,11 @@ class LocalPlayer extends Player {
 }
 
 class OtherPlayer extends Player {
-    constructor(x, y, angle) {
-        super(x, y);
-        this.targetX = x;
-        this.targetY = y;
-        this.targetAngle = angle;
+    constructor() {
+        super();
+        this.targetX = 0;
+        this.targetY = 0;
+        this.targetAngle = 0;
     }
 
     update(deltaTime) {
@@ -251,7 +251,7 @@ const textures = {
 const keys = {};
 const mouse = { x: 0, y: 0 };
 
-const ws = new WebSocket('wss://flat-knives-beam.loca.lt');
+const ws = new WebSocket('wss://major-windows-battle.loca.lt');
 
 
 const MESSAGE_TYPES = {
@@ -261,41 +261,25 @@ const MESSAGE_TYPES = {
     PLAYER_MOVE: 'playerMove',
     PLAYER_LEFT: 'playerLeft'
 };
-let myPlayerId = null;
 
 ws.onmessage = (event) => {
     const data = JSON.parse(event.data);
 
-    if (data.type === 'PLAYER_INIT') {
-        myPlayerId = data.playerId;
-        player.x = data.x;
-        player.y = data.y;
-        player.angle = data.angle;
-        player.updateCenters();
-    }
-    else if (data.type === MESSAGE_TYPES.PONG) {
-        ping = Date.now() - lastPingTime;
-    }
+    if (data.type === MESSAGE_TYPES.PONG) ping = Date.now() - lastPingTime;
+
     else if (data.type === MESSAGE_TYPES.PLAYER_MOVE) {
-        // Если это сообщение о НАС - обновляем главного игрока
-        if (data.playerId === myPlayerId) {
-            player.x = data.x;
-            player.y = data.y;
-            player.angle = data.angle;
-            player.updateCenters();
+        let otherPlayer = otherPlayers.get(data.playerId);
+
+        if (!otherPlayer) {
+            otherPlayer = new OtherPlayer();
+            otherPlayers.set(data.playerId, otherPlayer);
         }
-        // Если это другие игроки
-        else {
-            let otherPlayer = otherPlayers.get(data.playerId);
-            if (!otherPlayer) {
-                otherPlayer = new OtherPlayer(data.x, data.y, data.angle);
-                otherPlayers.set(data.playerId, otherPlayer);
-            }
-            otherPlayer.targetX = data.x;
-            otherPlayer.targetY = data.y;
-            otherPlayer.targetAngle = data.angle;
-        }
+
+        otherPlayer.targetX = data.x;
+        otherPlayer.targetY = data.y;
+        otherPlayer.targetAngle = data.angle;
     }
+
     else if (data.type === MESSAGE_TYPES.PLAYER_LEFT) {
         otherPlayers.delete(data.playerId);
     }
@@ -362,4 +346,5 @@ allTextures.forEach(texture => {
         if (loadedCount === allTextures.length) gameLoop();
     };
     texture.img.src = texture.src;
+
 });
