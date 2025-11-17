@@ -210,12 +210,6 @@ class OtherPlayer extends Player {
         this.targetX = 0;
         this.targetY = 0;
         this.targetAngle = 0;
-        this.camera = {
-            x: 0,
-            y: 0,
-            width: canvas.width,
-            height: canvas.height
-        };
     }
 
     update(deltaTime) {
@@ -224,19 +218,6 @@ class OtherPlayer extends Player {
         this.angle += (this.targetAngle - this.angle) * 0.3 * deltaTime * 60;
 
         this.updateCenters();
-    }
-    updateScreenPosition() {
-        this.screenX = this.x - this.camera.x;
-        this.screenY = this.y - this.camera.y;
-        this.screenCenterX = this.screenX + this.size/2;
-        this.screenCenterY = this.screenY + this.size/2;
-    }
-
-    isVisible() {
-        return this.x < this.camera.x + this.camera.width + 100 &&
-            this.x + this.size > this.camera.x - 100 &&
-            this.y < this.camera.y + this.camera.height + 100 &&
-            this.y + this.size > this.camera.y - 100;
     }
 }
 
@@ -270,7 +251,7 @@ const textures = {
 const keys = {};
 const mouse = { x: 0, y: 0 };
 
-const ws = new WebSocket('wss://solid-cows-create.loca.lt');
+const ws = new WebSocket('wss://cyan-llamas-cover.loca.lt');
 
 
 const MESSAGE_TYPES = {
@@ -292,88 +273,81 @@ ws.onmessage = (event) => {
         if (!otherPlayer) {
             otherPlayer = new OtherPlayer();
             otherPlayers.set(data.playerId, otherPlayer);
-
-            if (data.cameraX !== undefined) {
-                otherPlayer.camera.x = data.cameraX;
-                otherPlayer.camera.y = data.cameraY;
-            }
         }
 
         otherPlayer.targetX = data.x;
         otherPlayer.targetY = data.y;
         otherPlayer.targetAngle = data.angle;
+    }
 
-        if (data.cameraX !== undefined) {
-            otherPlayer.camera.x = data.cameraX;
-            otherPlayer.camera.y = data.cameraY;
-        }
+    else if (data.type === MESSAGE_TYPES.PLAYER_LEFT) {
+        otherPlayers.delete(data.playerId);
     }
 };
-
 let ping = 0;
 let lastPingTime = 0;
 
-    setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) {
-            lastPingTime = Date.now();
-            ws.send(JSON.stringify({type: 'ping'}));
-        }
-        document.getElementById('ping').textContent = ping;
-    }, 500);
+setInterval(() => {
+    if (ws.readyState === WebSocket.OPEN) {
+        lastPingTime = Date.now();
+        ws.send(JSON.stringify({type: 'ping'}));
+    }
+    document.getElementById('ping').textContent = ping;
+}, 500);
 
-    window.addEventListener("keydown", (event) => { keys[event.code] = true; });
-    window.addEventListener("keyup", (event) => { keys[event.code] = false; });
-    window.addEventListener("mousemove", (event) => {
-        mouse.x = event.clientX;
-        mouse.y = event.clientY;
+window.addEventListener("keydown", (event) => { keys[event.code] = true; });
+window.addEventListener("keyup", (event) => { keys[event.code] = false; });
+window.addEventListener("mousemove", (event) => {
+    mouse.x = event.clientX;
+    mouse.y = event.clientY;
 
-        player.angle = Math.atan2(mouse.y - player.screenCenterY, mouse.x - player.screenCenterX);
+    player.angle = Math.atan2(mouse.y - player.screenCenterY, mouse.x - player.screenCenterX);
+});
+
+let lastTime = 0;
+function gameLoop(currentTime) {
+    if (lastTime === 0) lastTime = currentTime;
+    const deltaTime = (currentTime - lastTime) / 1000;
+    lastTime = currentTime;
+
+    player.update(deltaTime);
+    otherPlayers.forEach(otherPlayer => {
+        otherPlayer.update(deltaTime);
     });
 
-    let lastTime = 0;
-    function gameLoop(currentTime) {
-        if (lastTime === 0) lastTime = currentTime;
-        const deltaTime = (currentTime - lastTime) / 1000;
-        lastTime = currentTime;
+    camera.update();
 
-        player.update(deltaTime);
-        otherPlayers.forEach(otherPlayer => {
-            otherPlayer.update(deltaTime);
-            otherPlayer.updateScreenPosition();
-        });
+    player.updateScreenPosition(camera);
+    otherPlayers.forEach(otherPlayer => {
+        otherPlayer.updateScreenPosition(camera);
+    });
 
-        if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({
-                type: MESSAGE_TYPES.PLAYER_UPDATE,
-                x: player.x,
-                y: player.y,
-                angle: player.angle,
-                cameraX: camera.x,
-                cameraY: camera.y
-            }));
-        }
-
-        camera.update();
-        player.updateScreenPosition(camera);
-
-        world.draw(camera);
-        player.draw();
-        otherPlayers.forEach(otherPlayer => {
-            if (otherPlayer.isVisible()) otherPlayer.draw();
-        });
-
-        requestAnimationFrame(gameLoop);
+    if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+            type: MESSAGE_TYPES.PLAYER_UPDATE,
+            x: player.x,
+            y: player.y,
+            angle: player.angle
+        }));
     }
 
-    let loadedCount = 0;
-    const allTextures = [...textures.skins.basic];
-
-    allTextures.forEach(texture => {
-        texture.img.onload = () => {
-            loadedCount++;
-            if (loadedCount === allTextures.length) gameLoop();
-        };
-        texture.img.src = texture.src;
-
+    world.draw(camera);
+    player.draw();
+    otherPlayers.forEach(otherPlayer => {
+        if (otherPlayer.isVisible(camera)) otherPlayer.draw();
     });
 
+    requestAnimationFrame(gameLoop);
+}
+
+let loadedCount = 0;
+const allTextures = [...textures.skins.basic];
+
+allTextures.forEach(texture => {
+    texture.img.onload = () => {
+        loadedCount++;
+        if (loadedCount === allTextures.length) gameLoop();
+    };
+    texture.img.src = texture.src;
+
+});
